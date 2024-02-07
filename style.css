@@ -1,0 +1,147 @@
+body{
+    font-size: 20px;
+    font-family: sans-serif;
+}
+button{
+    font-size: 1em;
+}
+input{
+    font-size: 1em;
+}
+.common_box{
+    border-radius: 10px;
+    margin: 10px;
+    border: 2px solid #222222;
+    padding: 10px;
+}
+.icon{
+    padding-left: 10px;
+    padding-top: 5px;
+    width: 20px;
+    height: 20px;
+}
+.side{
+    display: inline-block;
+}
+.counter{
+    border-radius: 10px;
+    margin: 3px;
+    padding: 10px;
+    background-color: lightgray;
+    display: inline-block;
+}
+.long_input{
+    width: 200px;
+}
+.short_input{
+    width: 100px;
+}
+.counter_name{
+    font-weight: bold;
+    font-size: 1em;
+}
+.counter_controller{
+    font-size: 0.75em;
+}
+#rewrite_accept{
+    font-size: 0.62em;
+}
+text{
+    font-size:1em;
+}
+.add-num{
+    width:40px;
+}
+.rewrite-num{
+    width:80px;
+}
+.adder{
+    border-radius: 5px;
+    background-color:gray;
+    padding:3px;
+    display: inline-block;
+}
+text[id=num]{
+    padding-left: 10px;
+}
+input[type="radio"] {
+    position: relative;
+    width: 20px;
+    height: 20px;
+    border: 1px solid black;
+    border-radius: 50%;
+    vertical-align: -2px;
+    -webkit-appearance: none;
+        -moz-appearance: none;
+            appearance: none;
+}
+input[type="radio"]:checked:before {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: blue;
+    content: '';
+}
+#log_window{
+    white-space: nowrap;
+    background-color:lightgray;
+    height:200px;
+    overflow: auto;
+}
+button {
+    position: relative;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    transition: all 0.3s;
+    text-align: center;
+    vertical-align: middle;
+    text-decoration: none;
+    color: #212529;
+    border-radius: 5px;
+    border-color:#212529;
+    border-width: 1px;
+    background-color: #eeeeee;
+    padding: 3px 8px 3px 8px;
+}
+button:active {
+    background-color: #a9a9a9;
+}
+button:disabled {
+    background-color: #f9f9f9;
+    color: #bebebe;
+    border-color:#bebebe;
+}
+.alert{
+    position: fixed;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height:100%;
+    background-color: #8e8e8e6e;
+    
+}
+.alert h3{
+    position: fixed;
+    left: 0%;
+    top: 40%;
+    width: 100%;
+    height:100%;
+    text-align: center;
+}
+#room_display{
+    display: inline-block;
+}
+#password_display{
+    display: inline-block;
+    margin-left: 30px;
+}
+.left{
+    background-color: #ff9898;
+}

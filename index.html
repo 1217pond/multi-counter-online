@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.webrtc.ecl.ntt.com/skyway-4.4.5.js"></script>
+    <title>マルチカウンターONLINE</title>
+</head>
+<body>
+    <h2>マルチカウンターONLINE</h2>
+    <div id="home_menu">
+        <div class="common_box" id="account_window">
+            ニックネーム：<input type="text" id="my_name" class="long_input" placeholder="必須">
+        </div>
+        <div class="common_box" id="roommake_wondow">
+            <h3>ルーム作成</h3>
+            <button id="make-trg">作成</button>
+        </div>
+        <div class="common_box" id="roomjoin_wondow">
+            <h3>ルーム参加</h3>
+            ルーム名：<input type="text" id="room-name" class="long_input"/><br>
+            パスワード：<input type="password" id="password" class="long_input"/><br>
+            <button id="join-trg">参加</button>
+        </div>
+    </div>
+    <div class="common_box" id="build_window" hidden>
+        <h3>ルーム作成</h3>
+        ルーム名：<input type="text" id="room-name" class="long_input"/><br>
+        パスワード：<input type="password" id="password" class="long_input"/><br>
+        ユーザーのボックス：
+        <div class="common_box" id="user_window_example">
+            <text>ユーザー名</text><img class="icon" src="source/user.svg">
+            <div id="counters" class="side">
+                <div class="counter">
+                    <input type="text" class="short_input" id="counter_name" placeholder="カウンター名"><br>
+                    <input type="number" class="short_input" id="counter_number" placeholder="初期値">
+                </div>
+            </div>
+            <button id="add_counter">カウンター追加+</button>
+        </div>
+        独立ボックス：
+        <div class="common_box" id="independent_boxes">
+            <div id="boxes"></div>
+            <button id="add_box">ボックス追加+</button>
+        </div>
+        <button id="makeaccept-trg">決定</button><br>
+        <text style="color:gray">再読み込みでキャンセル</text>
+    </div>
+    <div class="alert" id="connecting" hidden>
+        <h3>接続中・・・</h3>
+    </div>
+    <div class="alert" id="loading" hidden>
+        <h3>読み込み中・・・</h3>
+    </div>
+    <div class="common_box" id="room_window" hidden>
+        <h3 id="room_display"></h3><div id="password_display"></div>
+        <div id="controller" class="common_box">
+            <button id="reload">再読込</button>
+            <input type="number" class="long_input" id="number_enterplace" placeholder="送る量を入力" min="1" disabled>
+            <button id="accept_send" disabled>送信</button>
+            <button id="all_send" disabled>全送信</button>
+            <button id="cancel_send" disabled>キャンセル</button>
+        </div>
+        <div id="users"></div>
+        <div id="boxes"></div>
+        ログ
+        <div id="log_window"></div>
+    </div>
+    <div class="alert" id="host_left" hidden>
+        <h3>ホストが退出しました。<br>ホストが再入室すれば復帰できます。</h3>
+    </div>
+    <div class="alert" id="room_left" hidden>
+        <h3>接続が切断されました。<br>同じルームに同じニックネームで入室すれば復帰できます。</h3>
+    </div>
+    
+    <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js" integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
+    <script src="script.js"></script>
+</body>
+</html>
