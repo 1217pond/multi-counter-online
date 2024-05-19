@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="source/favicon.ico" id="favicon">
+    <link rel="apple-touch-icon" sizes="180x180" href="source/favicon.png">
     <script src="https://cdn.webrtc.ecl.ntt.com/skyway-4.4.5.js"></script>
     <title>マルチカウンターONLINE</title>
 </head>
@@ -19,15 +21,15 @@
         </div>
         <div class="common_box" id="roomjoin_wondow">
             <h3>ルーム参加</h3>
-            ルーム名：<input type="text" id="room-name" class="long_input"/><br>
-            パスワード：<input type="password" id="password" class="long_input"/><br>
+            ルーム名：<input type="text" id="join-room-name" class="long_input"/><br>
+            パスワード：<input type="password" id="join-password" class="long_input"/><br>
             <button id="join-trg">参加</button>
         </div>
     </div>
     <div class="common_box" id="build_window" hidden>
         <h3>ルーム作成</h3>
-        ルーム名：<input type="text" id="room-name" class="long_input"/><br>
-        パスワード：<input type="password" id="password" class="long_input"/><br>
+        ルーム名：<input type="text" id="make-room-name" class="long_input"/><br>
+        パスワード：<input type="password" id="make-password" class="long_input"/><br>
         ユーザーのボックス：
         <div class="common_box" id="user_window_example">
             <text>ユーザー名</text><img class="icon" src="source/user.svg">
@@ -56,6 +58,7 @@
     <div class="common_box" id="room_window" hidden>
         <h3 id="room_display"></h3><div id="password_display"></div>
         <div id="controller" class="common_box">
+            <button id="leave" style="color:red">退出</button>
             <button id="reload">再読込</button>
             <input type="number" class="long_input" id="number_enterplace" placeholder="送る量を入力" min="1" disabled>
             <button id="accept_send" disabled>送信</button>
@@ -70,11 +73,22 @@
     <div class="alert" id="host_left" hidden>
         <h3>ホストが退出しました。<br>ホストが再入室すれば復帰できます。</h3>
     </div>
+    <div class="alert" id="room_reconnect" hidden>
+        <h3>再接続中です。</h3>
+    </div>
     <div class="alert" id="room_left" hidden>
-        <h3>接続が切断されました。<br>同じルームに同じニックネームで入室すれば復帰できます。</h3>
+        <h3>接続が切断されました。<br>同じルームに同じニックネームで入室することでも復帰できます。</h3>
+        <button id="reconnect-trg">再接続</button>
+    </div>
+    <div class="alert" id="room_reject" hidden>
+        <h3>他の端末からログインされたため、接続を切断しました。</h3>
+    </div>
+    <div class="alert" id="kick" hidden>
+        <h3>キックされました。</h3>
     </div>
     
     <script src="https://code.jquery.com/jquery-3.7.1.slim.min.js" integrity="sha256-kmHvs0B+OpCW5GVHUNjv9rOmY0IvSIRcf7zGUDTDQM8=" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-cookie@3.0.5/dist/js.cookie.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

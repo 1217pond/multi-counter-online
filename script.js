@@ -1,6 +1,6 @@
 function join_room(){//ルーム参加
-    let room_name = $("#room-name").val();
-    let password = $("#password").val();
+    let room_name = $("#join-room-name").val();
+    let password = $("#join-password").val();
     if(room_name && password){//両方入力されているか
         $("#connecting").show();
         room = new CounterRoom(room_name,password);
@@ -58,8 +58,8 @@ function make_room(){//ルーム作成
         });
     });
     $("#makeaccept-trg").on("click",() => {//決定トリガ
-        let room_name = $("#build_window #room-name").val();
-        let password = $("#build_window #password").val();
+        let room_name = $("#make-room-name").val();
+        let password = $("#make-password").val();
         if(room_name && password){//両方入力されているか
             let options = {
                 room_name: room_name,
@@ -134,19 +134,19 @@ class CounterRoom{
         this.counters = {};
         this.names = {};
         this.left_users = [];//ユーザー名
-        this.alt_host = false;
-        this.name_rejected = false;
         this.last_log = "";
         this.last_log_times = 0;
         if(options){
             this.room_host = true;
             this.host_name = my_name;
-
         }else{
             this.room_host = false;
             this.host_name = "";
         }
         this.want_info = false;
+        this.destroyed = false;
+        this.leave_alert_showed = false;
+        this.host_left = false;
         $("#password_display").text(`パスワード：${password}`);
         this.Get_peer();
     }
@@ -162,7 +162,31 @@ class CounterRoom{
             console.log(id);
             this.Connect_room();
         });
-    }
+        this.my_peer.on("error", (error) => {
+            $("#room_reconnect").hide();
+            $("#connecting").hide();
+            if(this.my_peer.open){
+                alert(`エラー発生。${error.type}: ${error.message} (通信は維持)`);
+            }else{
+                if(!this.leave_alert_showed){
+                    this.leave_alert_showed = true;
+                    $("#room_left").show();
+                }
+                
+                alert(`エラー発生。${error.type}: ${error.message}`);
+            }
+        });
+        this.my_peer.on("close",()=>{
+            if(this.destroyed){
+                console.log("正常に接続が解除されました。");
+            }else{
+                if(!this.leave_alert_showed){
+                    this.leave_alert_showed = true;
+                    $("#room_left").show();
+                }
+            }
+        });
+    }   
 
     Connect_room(){
         this.connectionRoom = this.my_peer.joinRoom(`${this.room_name}#${this.password}`, {
@@ -170,44 +194,126 @@ class CounterRoom{
         });
         this.connectionRoom.once("open", () => {
             let members = this.connectionRoom.members;
+            let room_cache = Cookies.get(`roomcache_${this.room_name}-${this.password}`);
+            let cache_loaded = false;
+            if(room_cache){
+                room_cache = JSON.parse(room_cache); 
+                if(room_cache.host_name == my_name){
+                    cache_loaded = true;
+                }
+            }
             if(members.length  > 0){
                 if(this.room_host){
-                    alert("すでに作成されているルームです。");
-                    this.leave_room();
-                    $("#connecting").hide();
+                        alert("すでに作成されているルームです。");
+                        this.leave_room();
+                        $("#connecting").hide();
                 }else{
-                    $("#room_window #room_display").text(this.room_name);
-                    this.events_set();
-                    this.want_info = true;
-                    this.connectionRoom.send({
-                        type:"init",
-                        name: my_name,
-                    });
+                    if(cache_loaded){
+                        this.return_room(room_cache);
+                    }else{
+                        this.log(`<SYSTEM> ${my_name}が参加`);
+                        $("#room_window #room_display").text(this.room_name);
+                        this.events_set();
+                        
+                        this.want_info = true;
+                        this.connectionRoom.send({
+                            type:"init",
+                            name: my_name,
+                        });
+                    }
                 }
             }else{
                 if(this.room_host){
-                    $("#build_window").hide();
-                    $("#connecting").hide();
-                    $("#room_window").show();
-                    $("#reload").prop("disabled",true);
-                    $("#room_window #room_display").text(this.room_name);
-                    this.events_set();
-                    this.make_room();
-                    this.connecting_finish();
+                    if(cache_loaded){
+                        if(confirm("キャッシュされている閉鎖済みのルームが見つかりました。削除して作成しますか？")){
+                            $("#build_window").hide();
+                            $("#room_reconnect").hide();
+                            $("#connecting").hide();
+                            $("#room_window").show();
+                            $("#reload").prop("disabled",true);
+                            $("#room_window #room_display").text(this.room_name);
+                            this.events_set();
+                            this.make_room();
+                            this.connecting_finish();
+                        }else{
+                            alert("キャンセルされました。");
+                            this.leave_room();
+                            $("#room_reconnect").hide();
+                            $("#connecting").hide();
+                        }
+                    }else{
+                        $("#build_window").hide();
+                        $("#room_reconnect").hide();
+                        $("#connecting").hide();
+                        $("#room_window").show();
+                        $("#reload").prop("disabled",true);
+                        $("#room_window #room_display").text(this.room_name);
+                        this.events_set();
+                        this.make_room();
+                        this.connecting_finish();
+                    }
+                    $
                 }else{
-                    alert("そのルームは作成されていません。");
-                    this.leave_room();
-                    $("#connecting").hide();
+                    if(cache_loaded){
+                        alert("キャッシュされている閉鎖済みのルームが見つかったため復元しました。");
+                        this.return_room(room_cache);
+                    }else{
+                        alert("そのルームは作成されていません。");
+                        this.leave_room();
+                        $("#room_reconnect").hide();
+                        $("#connecting").hide();
+                    }
                 }
-                
             }
             
         });
+        
+    }
+
+    return_room(room_cache){
+        this.room_host = true;
+        this.host_name = my_name;
+
+        this.names = room_cache.names;
+        let old_peer_id = Object.keys(this.names)[Object.values(this.names).indexOf(my_name)];
+        delete this.names[old_peer_id];//前の名前登録を削除
+        this.names[this.peer_id] = my_name;
+
+        this.options = room_cache.options;
+        this.left_users = Object.values(this.names);
+        this.left_users = remove_array_element(this.left_users,my_name);
+
+        this.counters = {};
+        this.load_room(room_cache.counters,true);
+        if(this.connectionRoom.members.length > 0){
+            this.called_members = 0;
+            this.connectionRoom.send({
+                type:"roll"
+            });
+        }
+        
+
+        this.connecting_finish();
+        this.events_set();
+        $("#connecting").hide();
+        $("#room_reconnect").hide();
+        $("#home_menu").hide();
+        $("#room_window").show();
+        $("#reload").prop("disabled",true);
     }
 
     leave_room(){
-        this.connectionRoom.close();
-        this.my_peer.destroy();
+        this.destroyed = true;
+        if(this.my_peer.open){
+            this.connectionRoom.close();
+            this.my_peer.destroy();
+        }
+        $("#leave").off();
+        $("#reload").off();
+        $("#all_send").off();
+        $("#accept_send").off();
+        $("#cancel_send").off();
+        delete this;
     }
 
     events_set(){
@@ -215,16 +321,16 @@ class CounterRoom{
             console.log("join",peer_id);
         });
         this.connectionRoom.on("peerLeave", (peer_id) => {
-            if(this.names[peer_id] == this.host_name){
-                $("#host_left").show();
-                let sorted_members = [...this.connectionRoom.members,this.peer_id].sort();
-                console.log(sorted_members);
-                if(sorted_members[0] == this.peer_id){//代替ホストを選定
-                    this.alt_host = true;
-                }
+            if(this.rejected_id == peer_id){
+                this.rejected_id = "";
             }else{
-                $(`#room_window #users .common_box[data-box-name=${this.names[peer_id]}]`).addClass("left");
-                this.left_users.push(this.names[peer_id]);
+                if(this.names[peer_id] == this.host_name){
+                    this.host_left = true;
+                    $("#host_left").show();
+                }else{
+                    $(`#room_window #users .common_box[data-box-name=${this.names[peer_id]}]`).addClass("left");
+                    this.left_users.push(this.names[peer_id]);
+                }
             }
         });
         this.connectionRoom.on("data", ({ src, data }) => {
@@ -232,51 +338,91 @@ class CounterRoom{
             console.log(peer_id,data);
             switch(data.type){
                 case "init"://ルームに入室したばかりのゲストからの通信
-                    if(Object.values(this.names).includes(data.name)){//すでに使われている名前ではないか
-                        if(this.left_users.includes(data.name)){//退出したユーザーか
-                            let old_peer_id = Object.keys(this.names)[Object.values(this.names).indexOf(data.name)];
-                            delete this.names[old_peer_id];//前の名前登録を削除
-                            delete this.left_users[this.left_users.indexOf(data.name)];//退出済みユーザー削除
-                            $(`#room_window #users .common_box[data-box-name=${data.name}]`).removeClass("left");
-                            this.names[peer_id] = data.name;
-                            this.come_room(data.name,false);
+                    if(this.host_left){
+                        this.connectionRoom.send({
+                            type:"hostleft-reject",
+                            peer_id:peer_id,
+                        });
+                    }else{
+                        if(data.name == my_name && !(data.name == this.host_name)){
+                            $("#room_reject").show();
+                            this.leave_room();
                         }else{
-                            if(data.name == this.host_name){//ホストが復帰したか
+                            if(Object.values(this.names).includes(data.name)){//すでに使われている名前ではないか
                                 let old_peer_id = Object.keys(this.names)[Object.values(this.names).indexOf(data.name)];
                                 delete this.names[old_peer_id];//前の名前登録を削除
                                 this.names[peer_id] = data.name;
-                                $("#host_left").hide();
-                                if(this.alt_host){//代替ホストによるルーム情報送信
-                                    let filtered_counters = {};
-                                    for(let box_name in this.counters){
-                                        filtered_counters[box_name] = {};
-                                        for(let counter_name in this.counters[box_name]){
-                                            filtered_counters[box_name][counter_name] = {
-                                                num: this.counters[box_name][counter_name].num,
-                                            };
-                                        }
-                                    }
-                                    console.log(filtered_counters);
-
+                                if(data.name == this.host_name){//ホストと同じ名前か
+                                    this.rejected_id = peer_id;
                                     this.connectionRoom.send({
-                                        type:"recovery",
-                                        host_id:peer_id,
-                                        options:this.options,
-                                        names:this.names,
-                                        counters:filtered_counters,
-                                        left_users:this.left_users,
+                                        type:"hostname-reject",
+                                        peer_id:peer_id,
                                     });
+                                }else{
+                                    this.left_users = remove_array_element(this.left_users,data.name);//退出済みユーザー削除
+                                    $(`#room_window #users .common_box[data-box-name=${data.name}]`).removeClass("left");
+                                    this.come_room(data.name,false);
                                 }
                             }else{
-                                this.connectionRoom.send({
-                                    type:"name-reject",
-                                    target_id:peer_id
-                                });
+                                this.log(`<SYSTEM> ${data.name}が参加`);
+                                this.names[peer_id] = data.name;
+                                this.come_room(data.name);
                             }
                         }
+                    }
+                    break;
+                case "roll"://ルームに入室したホストからの通信
+                    if(this.room_host){
+                        $("#room_reject").show();
+                        this.leave_room();
                     }else{
-                        this.names[peer_id] = data.name;
-                        this.come_room(data.name);
+                        let old_peer_id = Object.keys(this.names)[Object.values(this.names).indexOf(this.host_name)];
+                        delete this.names[old_peer_id];//前の名前登録を削除
+                        this.names[peer_id] = this.host_name;
+
+                        $("#host_left").hide();
+                        console.log("my_name");
+                        this.connectionRoom.send({
+                            type:"call",
+                            name:my_name,
+                        });
+
+                        if(!this.host_left){//退出していなければ
+                            this.rejected_id = old_peer_id;
+                        }
+                        this.host_left = false;
+                    }
+                    
+                    break;
+                case "call":
+                    if(Object.values(this.names).includes(data.name)){
+                        let old_peer_id = Object.keys(this.names)[Object.values(this.names).indexOf(data.name)];
+                        delete this.names[old_peer_id];
+                    }
+                    this.names[peer_id] = data.name;
+
+                    this.left_users = remove_array_element(this.left_users,data.name);//退出済みユーザー削除
+                    $(`#room_window #users .common_box[data-box-name=${data.name}]`).removeClass("left");
+
+                    this.called_members++;
+                    if(this.connectionRoom.members.length <= this.called_members){
+                        $("#room_reconnect").hide();
+                    }
+                    break;
+                case "hostname-reject":
+                    if(this.want_info && data.peer_id == this.peer_id){
+                        alert("ニックネームが対象のルームでホストとして使用されています。");
+                        this.leave_room();
+                        $("#room_reconnect").hide();
+                        $("#connecting").hide();
+                    }
+                    break;
+                case "hostleft-reject":
+                    if(this.want_info && data.peer_id == this.peer_id){
+                        alert("対象のルームのホストが不在であるため、現在は参加できません。");
+                        this.leave_room();
+                        $("#room_reconnect").hide();
+                        $("#connecting").hide();
                     }
                     break;
                 case "reload"://再読込のためのデータ要求
@@ -325,15 +471,8 @@ class CounterRoom{
                         this.connecting_finish();
                         $("#home_menu").hide();
                         $("#connecting").hide();
+                        $("#room_reconnect").hide();
                         $("#room_window").show();
-                    }
-                    break;
-                case "name-reject"://同じ名前があったため拒否された
-                    if(data.target_id == this.peer_id){
-                        alert("その名前は対象のルームですでに使われているため使用できません。");
-                        this.name_rejected = true;
-                        this.leave_room();
-                        $("#connecting").hide();
                     }
                     break;
                 case "counter-rewrite":
@@ -345,23 +484,31 @@ class CounterRoom{
                 case "counter-send":
                     this.send(data.from_box_name,data.from_counter_name,data.to_box_name,data.to_counter_name,data.number,this.names[peer_id]);
                     break;
-                case "recovery":
-                    if(this.peer_id == data.host_id){
-                        this.want_info = false;
-                        this.room_host = true;
-                        this.host_name = my_name;
-
-                        this.options = data.options;
-                        this.names = data.names;
-                        this.counters = {};
-                        this.left_users = data.left_users;
-                        this.load_room(data.counters);
-
-                        this.connecting_finish();
-                        $("#connecting").hide();
-                        $("#home_menu").hide();
-                        $("#room_window").show();
-                        $("#reload").prop("disabled",true);
+                case "kick":
+                    if(data.name == my_name){
+                        $("#kick").show();
+                        this.leave_room();
+                    }else{
+                        this.log(`<${this.names[peer_id]}> ${data.name}をキック`);
+                        $(`#room_window #users .common_box[data-box-name=${data.name}]`).remove();
+                        let kick_peer_id = Object.keys(this.names)[Object.values(this.names).indexOf(data.name)];
+                        delete this.names[kick_peer_id];
+                        delete this.counters[data.name];
+                        this.left_users = remove_array_element(this.left_users,data.name);
+                    }
+                    break;
+                case "leave":
+                    if(data.name == this.host_name){
+                        //ホストが退出
+                    }else{
+                        this.log(`<SYSTEM> ${data.name}が退出`);
+                        $(`#room_window #users .common_box[data-box-name=${data.name}]`).remove();
+                        let left_peer_id = Object.keys(this.names)[Object.values(this.names).indexOf(data.name)];
+                        delete this.names[left_peer_id];
+                        delete this.counters[data.name];
+                        if(this.room_host){
+                            this.cache_room();
+                        }
                     }
                     break;
                 default:
@@ -369,14 +516,22 @@ class CounterRoom{
                     break;
             }
         });
+
+
         this.connectionRoom.once("close",()=>{
-            if(!this.name_rejected){
-                $("#room_left").show();
+            if(!this.destroyed){
+                if(!this.leave_alert_showed){
+                    this.leave_alert_showed = true;
+                    $("#room_left").show();
+                }
             }
         });
     }
 
     connecting_finish(){//接続完了
+        if(this.room_host){
+            this.cache_room();
+        }
         $("#reload").on("click",()=>{//再読込
             this.want_info = true;
             $("#loading").show();
@@ -390,6 +545,7 @@ class CounterRoom{
                 if(address_elm.data("box-name") == this.send_from_box_name && address_elm.data("counter-name") == this.send_from_counter_name){
                     alert("送信元と送信先は異なっている必要があります。");
                 }else{
+                    console.log(this.counters,this.send_from_box_name,this.send_from_counter_name);
                     let from_counter_num = this.counters[this.send_from_box_name][this.send_from_counter_name].num;
                     this.send(
                         this.send_from_box_name,//送信元のボックス名
@@ -466,17 +622,28 @@ class CounterRoom{
             $("#accept_send").prop("disabled",true);
             $("#cancel_send").prop("disabled",true);
         });
+        $("#leave").on("click",()=>{//退出
+            if(confirm("退出しますか？")){
+                this.connectionRoom.send({
+                    type:"leave",
+                    name:my_name
+                });
+                $("#room_window").hide();
+                $("#home_menu").show();
+                this.leave_room();
+            }
+        });
     }
 
-    add_box(box_name,counters,can_control,icon,role){
+    add_box(box_name,counters,can_control,icon,role,left=false){
         this.counters[box_name] = {};
 
         let box = $(`
-            <div class="common_box" data-box-name="${box_name}">
+            <div class="common_box${left ? " left":""}" data-box-name="${box_name}">
                 <text id="user_name">${box_name}</text><img class="icon" src="source/${icon}.svg">
-                <div id="counters" class="side"></div>
+                <div id="counters" class="side"></div>${(role == "user" && this.room_host && box_name != my_name) ? '<button id="kick-trg">×</button>' : ""}
             </div>
-        `);//ユーザーボックス生成
+        `);//ユーザーボックス生成(left状態のときは、left classを付加)
         if(this.left_users.includes(box_name)){
             box.addClass("left");
         }
@@ -555,10 +722,46 @@ class CounterRoom{
         
         if(role == "user"){
             $("#room_window #users").append(box);
+            if(this.room_host){
+                box.children("#kick-trg").on("click",()=>{
+                    if(confirm(`${box_name}をキックしますか？`)){
+                        this.log(`<${my_name}> ${box_name}をキック`);
+                        box.remove();
+                        this.connectionRoom.send({
+                            type:"kick",
+                            name:box_name,
+                        });
+                        let peer_id = Object.keys(this.names)[Object.values(this.names).indexOf(box_name)];
+                        delete this.names[peer_id];
+                        delete this.counters[box_name];
+                        this.left_users = remove_array_element(this.left_users,box_name);
+                        this.cache_room();
+                    }
+                });
+            }
+            
         }else{
             $("#room_window #boxes").append(box);
         }
         
+    }
+
+    cache_room(){
+        let filtered_counters = {};
+        for(let box_name in this.counters){
+            filtered_counters[box_name] = {};
+            for(let counter_name in this.counters[box_name]){
+                filtered_counters[box_name][counter_name] = {
+                    num: this.counters[box_name][counter_name].num,
+                };
+            }
+        }
+        Cookies.set(`roomcache_${this.room_name}-${this.password}`,JSON.stringify({
+            options:this.options,
+            names:this.names,
+            counters:filtered_counters,
+            host_name:my_name,
+        }), { expires: 1 });
     }
 
     make_room(){
@@ -569,7 +772,7 @@ class CounterRoom{
         console.log(this.counters);
     }
 
-    load_room(filtered_counters){
+    load_room(filtered_counters,all_left=false){
         $("#room_window #users").empty();
         $("#room_window #boxes").empty();
         this.add_box(my_name,this.options.user.counters,true,this.room_host ? "crown" : "user","user");//自分のボックスを追加
@@ -580,7 +783,7 @@ class CounterRoom{
             let user_name = this.names[user_id];
             if(user_name != my_name){
                 console.log(user_id,user_name);
-                this.add_box(user_name,this.options.user.counters,false,user_name == this.host_name ? "crown" : "user","user");//ゲストのボックスを追加
+                this.add_box(user_name,this.options.user.counters,false,user_name == this.host_name ? "crown" : "user","user",all_left);//ゲストのボックスを追加
             }
         }
         for(let box_name in filtered_counters){
@@ -616,12 +819,14 @@ class CounterRoom{
                 left_users:this.left_users,
                 host_name:my_name,
             });
+
+            this.cache_room();
         }
     }
 
     log(text){
         if(this.last_log == text){
-            $("#log_window div").first().text(this.last_log + ` ×${this.last_log_times+1}`);
+            $("#log_window div").first().text(this.last_log + ` (×${this.last_log_times+1})`);
             this.last_log_times++;
         }else{
             this.last_log_times = 1;
@@ -634,9 +839,13 @@ class CounterRoom{
     }
 
     rewrite(box_name,counter_name,number,user_name){
+        let org_num = this.counters[box_name][counter_name].num;
         this.counters[box_name][counter_name].num = number;
         this.counters[box_name][counter_name].display.text(number);
-        this.log(`<${user_name}> ${box_name}の${counter_name}を${number}に書き換え`);
+        this.log(`<${user_name}> ${box_name}の${counter_name}を${org_num}から${number}に書き換え`);
+        if(this.room_host){
+            this.cache_room();
+        }
     }
 
     add(box_name,counter_name,number,user_name){
@@ -646,6 +855,9 @@ class CounterRoom{
         this.counters[box_name][counter_name].num = _num;
         this.counters[box_name][counter_name].display.text(_num);
         this.log(`<${user_name}> ${box_name}の${counter_name}を${0 > Number(number) ? number : "+" + number}`);//足したか引いたかで分岐
+        if(this.room_host){
+            this.cache_room();
+        }
     }
 
     send(from_box_name,from_counter_name,to_box_name,to_counter_name,number,user_name){
@@ -664,26 +876,50 @@ class CounterRoom{
         this.counters[to_box_name][to_counter_name].num = _to_num;
         this.counters[to_box_name][to_counter_name].display.text(_to_num);
         this.log(`<${user_name}> ${from_box_name}の${from_counter_name}から${to_box_name}の${to_counter_name}に${number}送信`);
+        if(this.room_host){
+            this.cache_room();
+        }
     }
 }
 
-//グローバルスコープ
+function remove_array_element(array,target){
+    return array.filter(value => target != value);
+}
+
+// ###グローバルスコープ###
+
+//ルーム参加トリガ
 $("#join-trg").on("click",()=>{
     my_name = $("#my_name").val();
     if(my_name){
+        Cookies.set("nick_name", my_name, { expires: 1 });
         join_room();
     }else{
         alert("ニックネームを入力してください。");
     }
-});//ルーム参加トリガ
+});
+//ルーム作成トリガ
 $("#make-trg").on("click",()=>{
     my_name = $("#my_name").val();
     if(my_name){
+        Cookies.set("nick_name", my_name, { expires: 1 });
         make_room();
     }else{
         alert("ニックネームを入力してください。");
     }
-});//ルーム作成トリガ
+});
+//再接続トリガ
+$("#reconnect-trg").on("click",()=>{
+    $("#room_left").hide();
+    $("#room_reconnect").show();
+    room.leave_room();
+    room = new CounterRoom(room.room_name,room.password);
+});
+
+//ニックネーム読み込み
+if(Cookies.get("nick_name")){
+    $("#my_name").val(Cookies.get("nick_name"));
+}
 
 let room;
 let my_name;
